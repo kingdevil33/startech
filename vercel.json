@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/cron/cohort-status", "schedule": "17 3 * * *" },
+    { "path": "/api/cron/reminders", "schedule": "37 3 * * *" },
+    { "path": "/api/cron/assign-reviews", "schedule": "53 3 * * *" },
+    { "path": "/api/cron/certificates", "schedule": "11 4 * * *" },
+    { "path": "/api/cron/reindex", "schedule": "29 4 * * *" }
+  ]
+}
