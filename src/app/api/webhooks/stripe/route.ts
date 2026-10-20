@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { verifyStripeWebhook } from "@/lib/stripe/webhook";
 import {
   notifyEnrollmentConfirmed,
   notifyRefundProcessed,
 } from "@/lib/email/notify";
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY || "");
-}
 
 // Use service role client for webhook (no user session)
 function getSupabase() {
@@ -31,7 +26,7 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, endpointSecret);
+    event = verifyStripeWebhook(body, sig);
   } catch (err) {
     console.error("Stripe webhook verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
@@ -45,6 +40,16 @@ export async function POST(request: NextRequest) {
       const metadata = session.metadata;
 
       if (!metadata?.enrollment_id) break;
+
+      // Idempotency: Stripe retries and duplicate endpoint deliveries must
+      // not re-send notifications/emails for an already-activated enrollment.
+      const { data: enrollment } = await supabase
+        .from("enrollments")
+        .select("id, status")
+        .eq("id", metadata.enrollment_id)
+        .maybeSingle();
+
+      const alreadyActive = enrollment?.status === "active";
 
       // Activate enrollment
       await supabase
@@ -73,6 +78,8 @@ export async function POST(request: NextRequest) {
         },
         { onConflict: "enrollment_id,gateway" }
       );
+
+      if (alreadyActive) break;
 
       // Create notification
       await supabase.rpc("create_notification", {
@@ -112,6 +119,14 @@ export async function POST(request: NextRequest) {
       if (paymentIntentId) {
         const refundAmount = (charge.amount_refunded || 0) / 100;
 
+        const { data: payment } = await supabase
+          .from("payments")
+          .select("id, enrollment_id, user_id, status")
+          .eq("gateway_payment_id", paymentIntentId)
+          .maybeSingle();
+
+        const alreadyRefunded = payment?.status === "refunded";
+
         await supabase
           .from("payments")
           .update({
@@ -121,14 +136,7 @@ export async function POST(request: NextRequest) {
           })
           .eq("gateway_payment_id", paymentIntentId);
 
-        // Find the enrollment and mark as refunded
-        const { data: payment } = await supabase
-          .from("payments")
-          .select("id, enrollment_id, user_id")
-          .eq("gateway_payment_id", paymentIntentId)
-          .single();
-
-        if (payment) {
+        if (payment && !alreadyRefunded) {
           await supabase
             .from("enrollments")
             .update({ status: "refunded" })

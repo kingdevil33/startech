@@ -21,7 +21,7 @@ create type public.payment_status as enum (
 create type public.payment_gateway as enum ('stripe', 'paystack');
 
 create table public.enrollments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   cohort_id uuid not null references public.cohorts(id) on delete cascade,
   status public.enrollment_status not null default 'reserved',
@@ -50,7 +50,7 @@ create trigger enrollments_updated_at
   for each row execute function public.update_updated_at();
 
 create table public.payments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   enrollment_id uuid not null references public.enrollments(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   cohort_id uuid not null references public.cohorts(id) on delete cascade,

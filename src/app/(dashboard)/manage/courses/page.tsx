@@ -8,14 +8,11 @@ import {
   Settings,
   Users,
   Eye,
-  MoreHorizontal,
-  ChevronRight,
   GraduationCap,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Manage Courses" };
 
@@ -37,8 +34,8 @@ export default async function ManageCoursesPage() {
     redirect("/dashboard");
   }
 
-  // Fetch courses where user is instructor
-  const { data: courses } = await supabase
+  // Instructors see their own courses; admins and TAs see all
+  let query = supabase
     .from("courses")
     .select(
       `
@@ -47,8 +44,13 @@ export default async function ManageCoursesPage() {
       weeks (id)
     `
     )
-    .eq("instructor_id", user.id)
     .order("created_at", { ascending: false });
+
+  if (profile.role !== "admin") {
+    query = query.eq("instructor_id", user.id);
+  }
+
+  const { data: courses } = await query;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -61,9 +63,11 @@ export default async function ManageCoursesPage() {
             Manage your courses, content, and cohorts.
           </p>
         </div>
-        <Button variant="accent" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Course
+        <Button variant="accent" className="gap-2" asChild>
+          <Link href="/manage/courses/new">
+            <Plus className="h-4 w-4" />
+            Create Course
+          </Link>
         </Button>
       </div>
 
@@ -148,9 +152,11 @@ export default async function ManageCoursesPage() {
                           Preview
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" className="gap-1.5">
-                        <Settings className="h-3.5 w-3.5" />
-                        Edit
+                      <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                        <Link href={`/manage/courses/${course.id}`}>
+                          <Settings className="h-3.5 w-3.5" />
+                          Edit
+                        </Link>
                       </Button>
                     </div>
                   </div>
@@ -168,9 +174,11 @@ export default async function ManageCoursesPage() {
           <p className="text-sm text-muted-foreground mb-4">
             Create your first course to get started.
           </p>
-          <Button variant="accent" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Course
+          <Button variant="accent" className="gap-2" asChild>
+            <Link href="/manage/courses/new">
+              <Plus className="h-4 w-4" />
+              Create Course
+            </Link>
           </Button>
         </Card>
       )}

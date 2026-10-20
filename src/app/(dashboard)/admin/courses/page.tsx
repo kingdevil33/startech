@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
-import { Eye, EyeOff, Search } from "lucide-react";
+import { Eye, EyeOff, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDate, sanitizeSearchTerm } from "@/lib/utils";
 import { ActionButton } from "../action-button";
-import { toggleCoursePublishAction } from "../actions";
+import { toggleCoursePublishAction, deleteCourseAction } from "../actions";
+import { InstructorCell } from "./instructor-cell";
 
 export const metadata: Metadata = { title: "Admin — Courses" };
 
@@ -37,21 +40,36 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
 
   const { data: courses } = await query;
 
+  const { data: instructors } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("role", ["instructor", "teaching_assistant", "admin"])
+    .eq("is_active", true)
+    .order("full_name");
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight">
           All Courses
         </h1>
-        <form method="get" className="relative max-w-xs w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={q || ""}
-            placeholder="Search courses..."
-            className="pl-10 bg-muted/50 border-none"
-          />
-        </form>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Button variant="accent" className="gap-2 shrink-0" asChild>
+            <Link href="/manage/courses/new">
+              <Plus className="h-4 w-4" />
+              New Course
+            </Link>
+          </Button>
+          <form method="get" className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              name="q"
+              defaultValue={q || ""}
+              placeholder="Search courses..."
+              className="pl-10 bg-muted/50 border-none"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -75,8 +93,12 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
                   <p className="font-medium">{course.title}</p>
                   <p className="text-xs text-muted-foreground">{course.slug}</p>
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">
-                  {course.instructor?.full_name || "—"}
+                <td className="py-3 pr-4">
+                  <InstructorCell
+                    courseId={course.id}
+                    instructorId={course.instructor_id}
+                    instructors={instructors || []}
+                  />
                 </td>
                 <td className="py-3 pr-4">
                   <Badge variant="outline" className="capitalize text-[10px]">
@@ -95,23 +117,43 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
                   {formatDate(course.created_at)}
                 </td>
                 <td className="py-3">
-                  <ActionButton
-                    action={toggleCoursePublishAction}
-                    fields={{
-                      courseId: course.id,
-                      isPublished: String(course.is_published),
-                    }}
-                    variant={course.is_published ? "outline" : "accent"}
-                    size="sm"
-                    className="gap-1.5"
-                    successMessage={
-                      course.is_published
-                        ? "Course unpublished"
-                        : "Course published"
-                    }
-                  >
-                    {course.is_published ? "Unpublish" : "Publish"}
-                  </ActionButton>
+                  <div className="flex items-center gap-1 justify-end">
+                    <Button variant="outline" size="sm" className="gap-1" asChild>
+                      <Link href={`/manage/courses/${course.id}`}>
+                        <Settings className="h-3 w-3" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <ActionButton
+                      action={toggleCoursePublishAction}
+                      fields={{
+                        courseId: course.id,
+                        isPublished: String(course.is_published),
+                      }}
+                      variant={course.is_published ? "outline" : "accent"}
+                      size="sm"
+                      className="gap-1.5"
+                      successMessage={
+                        course.is_published
+                          ? "Course unpublished"
+                          : "Course published"
+                      }
+                    >
+                      {course.is_published ? "Unpublish" : "Publish"}
+                    </ActionButton>
+                    <ActionButton
+                      action={deleteCourseAction}
+                      fields={{ courseId: course.id }}
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      confirmMessage={`Delete "${course.title}"? This removes all weeks, lessons, and cohorts. This cannot be undone.`}
+                      successMessage="Course deleted"
+                      title="Delete course"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </ActionButton>
+                  </div>
                 </td>
               </tr>
             ))}

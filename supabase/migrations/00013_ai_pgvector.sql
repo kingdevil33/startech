@@ -6,7 +6,7 @@ create extension if not exists vector;
 
 -- Content chunks for RAG
 create table public.content_chunks (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   
   -- Source reference
   course_id uuid not null references public.courses(id) on delete cascade,
@@ -48,7 +48,7 @@ create trigger content_chunks_updated_at
 
 -- AI conversations
 create table public.ai_conversations (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   course_id uuid not null references public.courses(id) on delete cascade,
   cohort_id uuid not null references public.cohorts(id) on delete cascade,
@@ -67,7 +67,7 @@ create trigger ai_conversations_updated_at
 
 -- AI messages
 create table public.ai_messages (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references public.ai_conversations(id) on delete cascade,
   role text not null check (role in ('user', 'assistant', 'system')),
   content text not null,
@@ -92,7 +92,7 @@ create index idx_ai_messages_feedback on public.ai_messages(feedback) where feed
 
 -- AI usage tracking (monthly budget per student)
 create table public.ai_usage (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   course_id uuid not null references public.courses(id) on delete cascade,
   month_year text not null, -- "2024-01" format

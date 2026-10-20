@@ -1,0 +1,68 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.117.3"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.117.3": "614f9e550b12b4be7054f947cc4949ebcc0eceeb8e83f7e226cc875356e9b126"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@hookform/resolvers@4",
+        "npm:@mux/mux-node@9",
+        "npm:@mux/mux-player-react@3",
+        "npm:@radix-ui/react-accordion@1",
+        "npm:@radix-ui/react-alert-dialog@1",
+        "npm:@radix-ui/react-avatar@1",
+        "npm:@radix-ui/react-checkbox@1",
+        "npm:@radix-ui/react-dialog@1",
+        "npm:@radix-ui/react-dropdown-menu@2",
+        "npm:@radix-ui/react-label@2",
+        "npm:@radix-ui/react-popover@1",
+        "npm:@radix-ui/react-progress@1",
+        "npm:@radix-ui/react-scroll-area@1",
+        "npm:@radix-ui/react-select@2",
+        "npm:@radix-ui/react-separator@1",
+        "npm:@radix-ui/react-slot@1",
+        "npm:@radix-ui/react-tabs@1",
+        "npm:@radix-ui/react-toast@1",
+        "npm:@radix-ui/react-tooltip@1",
+        "npm:@supabase/ssr@0",
+        "npm:@supabase/supabase-js@2",
+        "npm:@tailwindcss/postcss@4",
+        "npm:@types/node@20",
+        "npm:@types/react-dom@19",
+        "npm:@types/react@19",
+        "npm:@upstash/ratelimit@2",
+        "npm:@upstash/redis@1",
+        "npm:class-variance-authority@0.7",
+        "npm:clsx@2",
+        "npm:cmdk@1",
+        "npm:date-fns@4",
+        "npm:eslint-config-next@15",
+        "npm:eslint@9",
+        "npm:lucide-react@0.500",
+        "npm:next-themes@0.4",
+        "npm:next@15",
+        "npm:openai@4",
+        "npm:postcss@8",
+        "npm:react-dom@19",
+        "npm:react-hook-form@7",
+        "npm:react-markdown@10",
+        "npm:react@19",
+        "npm:rehype-highlight@7",
+        "npm:rehype-raw@7",
+        "npm:remark-gfm@4",
+        "npm:resend@4",
+        "npm:sonner@2",
+        "npm:stripe@17",
+        "npm:tailwind-merge@3",
+        "npm:tailwindcss@4",
+        "npm:typescript@5",
+        "npm:zod@3",
+        "npm:zustand@5"
+      ]
+    }
+  }
+}

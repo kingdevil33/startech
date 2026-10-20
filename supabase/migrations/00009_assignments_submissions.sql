@@ -4,7 +4,7 @@
 create type public.submission_status as enum ('draft', 'submitted', 'late', 'graded');
 
 create table public.assignments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   week_id uuid not null references public.weeks(id) on delete cascade,
   title text not null,
   description text, -- markdown instructions
@@ -40,7 +40,7 @@ create trigger assignments_updated_at
   for each row execute function public.update_updated_at();
 
 create table public.submissions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   assignment_id uuid not null references public.assignments(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   enrollment_id uuid not null references public.enrollments(id) on delete cascade,

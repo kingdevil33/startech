@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyRefundProcessed } from "@/lib/email/notify";
 
 type ActionResult = { success?: boolean; error?: string };
@@ -308,5 +309,141 @@ export async function revokeCertificateAction(
   );
 
   revalidatePath("/admin/certificates");
+  return { success: true };
+}
+
+/** Admin creates a teacher (instructor) account with a temporary password */
+export async function createInstructorAction(
+  formData: FormData
+): Promise<ActionResult> {
+  const fullName = ((formData.get("fullName") as string) || "").trim();
+  const email = ((formData.get("email") as string) || "").trim().toLowerCase();
+  const password = (formData.get("password") as string) || "";
+  const role = ((formData.get("role") as string) || "instructor").trim();
+
+  if (!fullName || !email || !password) {
+    return { error: "Name, email, and password are required" };
+  }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters" };
+  }
+  if (!["instructor", "teaching_assistant"].includes(role)) {
+    return { error: "Role must be instructor or teaching_assistant" };
+  }
+
+  const auth = await requireAdmin();
+  if (auth.error || !auth.supabase) return { error: auth.error || "Forbidden" };
+  const { supabase, userId: actorId } = auth;
+
+  const admin = createAdminClient();
+
+  const { data: created, error: createError } =
+    await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+
+  if (createError || !created.user) {
+    return {
+      error:
+        createError?.message === "A user with this email address has already been registered"
+          ? "A user with this email already exists"
+          : createError?.message || "Failed to create account",
+    };
+  }
+
+  // The signup trigger creates the profile with the default student role — promote it.
+  const { error: roleError } = await admin
+    .from("profiles")
+    .update({ role, full_name: fullName })
+    .eq("id", created.user.id);
+
+  if (roleError) {
+    return {
+      error: `Account created but role update failed: ${roleError.message}`,
+    };
+  }
+
+  await logAudit(supabase, actorId, "user.created", "profile", created.user.id, {
+    email,
+    role,
+    full_name: fullName,
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+/** Admin assigns a course to an instructor */
+export async function assignInstructorAction(
+  formData: FormData
+): Promise<ActionResult> {
+  const courseId = formData.get("courseId") as string;
+  const instructorId = ((formData.get("instructorId") as string) || "").trim();
+  if (!courseId) return { error: "Missing course id" };
+
+  const auth = await requireAdmin();
+  if (auth.error || !auth.supabase) return { error: auth.error || "Forbidden" };
+  const { supabase, userId: actorId } = auth;
+
+  if (instructorId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("id", instructorId)
+      .maybeSingle();
+
+    if (!profile) return { error: "Instructor not found" };
+    if (!["instructor", "teaching_assistant", "admin"].includes(profile.role)) {
+      return { error: "User is not an instructor" };
+    }
+  }
+
+  const { error } = await supabase
+    .from("courses")
+    .update({ instructor_id: instructorId || null })
+    .eq("id", courseId);
+
+  if (error) return { error: error.message };
+
+  await logAudit(supabase, actorId, "course.instructor_assigned", "course", courseId, {
+    instructor_id: instructorId || null,
+  });
+
+  revalidatePath("/admin/courses");
+  revalidatePath("/manage/courses");
+  return { success: true };
+}
+
+/** Admin deletes a course (cascades to weeks/lessons/cohorts) */
+export async function deleteCourseAction(
+  formData: FormData
+): Promise<ActionResult> {
+  const courseId = formData.get("courseId") as string;
+  if (!courseId) return { error: "Missing course id" };
+
+  const auth = await requireAdmin();
+  if (auth.error || !auth.supabase) return { error: auth.error || "Forbidden" };
+  const { supabase, userId: actorId } = auth;
+
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id, title")
+    .eq("id", courseId)
+    .maybeSingle();
+
+  if (!course) return { error: "Course not found" };
+
+  const { error } = await supabase.from("courses").delete().eq("id", courseId);
+  if (error) return { error: error.message };
+
+  await logAudit(supabase, actorId, "course.deleted", "course", courseId, {
+    title: course.title,
+  });
+
+  revalidatePath("/admin/courses");
+  revalidatePath("/manage/courses");
   return { success: true };
 }

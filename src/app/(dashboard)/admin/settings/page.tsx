@@ -27,7 +27,7 @@ const INTEGRATIONS: Integration[] = [
   { name: "Paystack", env: ["PAYSTACK_SECRET_KEY"] },
   { name: "Mux", env: ["MUX_TOKEN_ID", "MUX_SIGNING_KEY"] },
   { name: "Zoom", env: ["ZOOM_CLIENT_ID"] },
-  { name: "YouTube", env: ["YOUTUBE_API_KEY"] },
+  { name: "YouTube", env: ["YOUTUBE_CLIENT_ID"] },
   { name: "Resend", env: ["RESEND_API_KEY"] },
   { name: "OpenAI", env: ["OPENAI_API_KEY"] },
   { name: "Upstash Redis", env: ["UPSTASH_REDIS_REST_URL"] },

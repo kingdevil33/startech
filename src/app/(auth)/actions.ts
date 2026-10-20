@@ -3,11 +3,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notifyWelcome } from "@/lib/email/notify";
+import { authRateLimit, checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export type AuthState = {
   error?: string;
   success?: string;
 };
+
+const RATE_LIMIT_ERROR = "Too many attempts. Please wait a minute and try again.";
 
 // ─── LOGIN ───────────────────────────────────────────────────────
 export async function loginAction(
@@ -20,6 +23,12 @@ export async function loginAction(
 
   if (!email || !password) {
     return { error: "Email and password are required." };
+  }
+
+  const ip = await clientIp();
+  const limit = await checkRateLimit(authRateLimit, `auth:login:${ip}`);
+  if (!limit.success) {
+    return { error: RATE_LIMIT_ERROR };
   }
 
   const supabase = await createClient();
@@ -56,6 +65,12 @@ export async function signupAction(
 
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
+  }
+
+  const ip = await clientIp();
+  const limit = await checkRateLimit(authRateLimit, `auth:signup:${ip}`);
+  if (!limit.success) {
+    return { error: RATE_LIMIT_ERROR };
   }
 
   const supabase = await createClient();
@@ -96,6 +111,15 @@ export async function resendVerificationAction(
     return { error: "Enter a valid email address." };
   }
 
+  const ip = await clientIp();
+  const limit = await checkRateLimit(
+    authRateLimit,
+    `auth:resend:${ip}`
+  );
+  if (!limit.success) {
+    return { error: RATE_LIMIT_ERROR };
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resend({
@@ -124,6 +148,15 @@ export async function forgotPasswordAction(
 
   if (!email) {
     return { error: "Email is required." };
+  }
+
+  const ip = await clientIp();
+  const limit = await checkRateLimit(
+    authRateLimit,
+    `auth:forgot:${ip}`
+  );
+  if (!limit.success) {
+    return { error: RATE_LIMIT_ERROR };
   }
 
   const supabase = await createClient();

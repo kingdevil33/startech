@@ -9,6 +9,7 @@ import { formatDate, sanitizeSearchTerm } from "@/lib/utils";
 import { ActionButton } from "../action-button";
 import { toggleUserActiveAction } from "../actions";
 import { RoleCell } from "./role-cell";
+import { CreateTeacherForm } from "./create-teacher-form";
 
 export const metadata: Metadata = { title: "Admin — Users" };
 
@@ -46,15 +47,18 @@ export default async function AdminUsersPage({ searchParams }: Props) {
             {count || 0} total users
           </p>
         </div>
-        <form method="get" className="relative max-w-xs w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={q || ""}
-            placeholder="Search users..."
-            className="pl-10 bg-muted/50 border-none"
-          />
-        </form>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <CreateTeacherForm />
+          <form method="get" className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              name="q"
+              defaultValue={q || ""}
+              placeholder="Search users..."
+              className="pl-10 bg-muted/50 border-none"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="overflow-x-auto">

@@ -5,17 +5,18 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { cn } from "@/lib/utils";
-import type { NavSection } from "@/config/navigation";
+import { getNavForRole } from "@/config/navigation";
 
 interface DashboardShellProps {
   children: React.ReactNode;
-  navSections: NavSection[];
+  role: string;
 }
 
-export function DashboardShell({ children, navSections }: DashboardShellProps) {
+export function DashboardShell({ children, role }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const navSections = getNavForRole(role);
 
   // Close mobile sidebar on route change
   useEffect(() => {

@@ -2,7 +2,7 @@
 -- Tracks lesson completion and watch progress per enrollment
 
 create table public.progress (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   enrollment_id uuid not null references public.enrollments(id) on delete cascade,
   lesson_id uuid not null references public.lessons(id) on delete cascade,

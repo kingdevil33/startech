@@ -5,7 +5,7 @@ create type public.live_platform as enum ('zoom', 'youtube', 'tiktok', 'custom')
 create type public.session_status as enum ('scheduled', 'live', 'completed', 'cancelled');
 
 create table public.live_sessions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   cohort_id uuid not null references public.cohorts(id) on delete cascade,
   week_id uuid references public.weeks(id) on delete set null,
 
@@ -18,7 +18,7 @@ create table public.live_sessions (
   -- Scheduling
   scheduled_at timestamptz not null,
   duration_minutes integer not null default 60,
-  ends_at timestamptz generated always as (scheduled_at + (duration_minutes || ' minutes')::interval) stored,
+  ends_at timestamptz,
 
   -- Platform-specific data
   -- Zoom: meeting_id, join_url, start_url, passcode
@@ -50,13 +50,27 @@ create index idx_live_sessions_week on public.live_sessions(week_id);
 create index idx_live_sessions_scheduled on public.live_sessions(scheduled_at);
 create index idx_live_sessions_status on public.live_sessions(status);
 
+create or replace function public.set_session_ends_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.ends_at := new.scheduled_at + make_interval(mins => new.duration_minutes);
+  return new;
+end;
+$$;
+
+create trigger live_sessions_set_ends_at
+  before insert or update of scheduled_at, duration_minutes on public.live_sessions
+  for each row execute function public.set_session_ends_at();
+
 create trigger live_sessions_updated_at
   before update on public.live_sessions
   for each row execute function public.update_updated_at();
 
 -- Attendance tracking
 create table public.live_attendance (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.live_sessions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   joined_at timestamptz not null default now(),

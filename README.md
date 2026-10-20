@@ -129,7 +129,7 @@ role checks live in the pages/server actions (RLS is the hard boundary).
 | `POST /api/admin/export-data` | GDPR JSON export (self, or any user for admins) |
 | `POST /api/admin/refund` | Admin-initiated gateway refund |
 | `GET /api/forum/realtime` | Realtime token/channel helper |
-| `GET /api/mux/upload`, `GET /api/mux/playback` | Mux upload/playback auth |
+| `POST /api/mux/upload`, `GET /api/mux/upload`, `POST /api/mux/playback` | Mux direct-upload URL, processing status polling, playback token |
 | `POST /api/youtube/create-broadcast`, `POST /api/zoom/create-meeting` | Live-session provisioning |
 
 ### Supabase edge functions (`supabase/functions/`)

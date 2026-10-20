@@ -1,5 +1,6 @@
 import { Ratelimit, type Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { headers } from "next/headers";
 import { RATE_LIMITS } from "./constants";
 
 // Redis client, created on first use only — so importing this module never
@@ -98,5 +99,20 @@ export async function checkRateLimit(
     // If Redis is down, allow the request (fail open)
     console.error("Rate limit check failed:", error);
     return { success: true, remaining: -1, reset: 0 };
+  }
+}
+
+/**
+ * Best-effort client IP for identifying anonymous requests (auth actions).
+ * Returns "unknown" when headers are unavailable.
+ */
+export async function clientIp(): Promise<string> {
+  try {
+    const h = await headers();
+    const forwarded = h.get("x-forwarded-for");
+    if (forwarded) return forwarded.split(",")[0].trim();
+    return h.get("x-real-ip") || "unknown";
+  } catch {
+    return "unknown";
   }
 }

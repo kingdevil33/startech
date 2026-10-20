@@ -2,7 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Users, UserPlus, Activity, Wallet, Search, ChevronRight } from "lucide-react";
+import {
+  Users,
+  UserPlus,
+  Activity,
+  Wallet,
+  Search,
+  ChevronRight,
+  Plus,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +24,8 @@ import {
   sanitizeSearchTerm,
   percent,
 } from "@/lib/utils";
+import { ActionButton } from "../action-button";
+import { deleteCohortAction } from "../../manage/cohorts/actions";
 
 export const metadata: Metadata = { title: "Admin — Cohorts" };
 
@@ -84,15 +96,23 @@ export default async function AdminCohortsPage({ searchParams }: Props) {
           </h1>
           <p className="text-muted-foreground mt-1">{count || 0} cohorts</p>
         </div>
-        <form method="get" className="relative max-w-xs w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={q || ""}
-            placeholder="Search cohorts..."
-            className="pl-10 bg-muted/50 border-none"
-          />
-        </form>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Button variant="accent" className="gap-2 shrink-0" asChild>
+            <Link href="/manage/cohorts/new">
+              <Plus className="h-4 w-4" />
+              New Cohort
+            </Link>
+          </Button>
+          <form method="get" className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              name="q"
+              defaultValue={q || ""}
+              placeholder="Search cohorts..."
+              className="pl-10 bg-muted/50 border-none"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -204,6 +224,25 @@ export default async function AdminCohortsPage({ searchParams }: Props) {
                           <ChevronRight className="h-3 w-3" />
                         </Link>
                       </Button>
+                      <Button variant="ghost" size="sm" asChild className="gap-1">
+                        <Link href={`/manage/cohorts/${c.id}/edit`}>
+                          <Settings className="h-3 w-3" />
+                        </Link>
+                      </Button>
+                      {c.status === "draft" && (
+                        <ActionButton
+                          action={deleteCohortAction}
+                          fields={{ cohortId: c.id }}
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          confirmMessage={`Delete draft cohort "${c.name}"?`}
+                          successMessage="Cohort deleted"
+                          title="Delete cohort"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </ActionButton>
+                      )}
                     </div>
                   </td>
                 </tr>

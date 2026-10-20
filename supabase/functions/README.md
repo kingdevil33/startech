@@ -93,5 +93,11 @@ once daily. Point the Stripe/Paystack dashboards' webhook endpoints at
 `https://<PROJECT_REF>.supabase.co/functions/v1/stripe-webhook` and
 `.../paystack-webhook`.
 
+> **Webhook endpoints:** the Next.js app exposes the same events at
+> `/api/webhooks/stripe` and `/api/webhooks/paystack`. Register **one** of the
+> two with each gateway — the handlers are idempotent (duplicates are ignored),
+> but double delivery wastes work. In local dev, forward Stripe CLI events to
+> `http://localhost:3000/api/webhooks/stripe`.
+
 The equivalent Next.js cron routes (`/api/cron/*`) remain available when the
 app is deployed — see the "Cron jobs" section of the root README.

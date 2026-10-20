@@ -2,7 +2,7 @@
 -- Audit log for admin actions
 
 create table public.audit_log (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   actor_id uuid references public.profiles(id) on delete set null,
   action text not null, -- e.g., 'enrollment.created', 'refund.issued', 'certificate.revoked'
   entity_type text, -- 'enrollment', 'payment', 'cohort', 'user', etc.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateCertificatePdf } from "@/lib/pdf";
+import { apiRateLimit, checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * GET /api/certificates/generate?id=<uuid|number>
@@ -23,6 +24,15 @@ export async function GET(request: NextRequest) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    const identifier = user ? `api:${user.id}` : `ip:${await clientIp()}`;
+    const limit = await checkRateLimit(apiRateLimit, identifier);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429 }
+      );
+    }
 
     const isUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(

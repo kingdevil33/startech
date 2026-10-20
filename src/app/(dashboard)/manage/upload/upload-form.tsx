@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Upload,
-  Video,
   CheckCircle2,
   Loader2,
   AlertCircle,
@@ -21,22 +20,100 @@ interface VideoUploadFormProps {
     weekTitle: string;
     courseTitle: string;
   }[];
+  initialLessonId?: string;
 }
 
-export function VideoUploadForm({ lessonOptions }: VideoUploadFormProps) {
-  const [selectedLesson, setSelectedLesson] = useState(
-    lessonOptions[0]?.lessonId || ""
-  );
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
+const POLL_INTERVAL_MS = 4000;
+const POLL_TIMEOUT_MS = 15 * 60 * 1000; // Mux can take a while on long videos
+
+type Status = "idle" | "uploading" | "processing" | "done" | "error";
+
+export function VideoUploadForm({
+  lessonOptions,
+  initialLessonId,
+}: VideoUploadFormProps) {
+  const [selectedLesson, setSelectedLesson] = useState(() => {
+    if (
+      initialLessonId &&
+      lessonOptions.some((o) => o.lessonId === initialLessonId)
+    ) {
+      return initialLessonId;
+    }
+    return lessonOptions[0]?.lessonId || "";
+  });
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState<
-    "idle" | "uploading" | "processing" | "done" | "error"
-  >("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Preselect when the lesson editor links here with ?lessonId=
+  useEffect(() => {
+    if (
+      initialLessonId &&
+      lessonOptions.some((o) => o.lessonId === initialLessonId)
+    ) {
+      setSelectedLesson(initialLessonId);
+    }
+  }, [initialLessonId, lessonOptions]);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+  }, []);
+
+  function pollUntilProcessed(lessonId: string, deadline: number) {
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/mux/upload?lessonId=${encodeURIComponent(lessonId)}`,
+          { cache: "no-store" }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Status check failed");
+
+        if (data.status === "ready") {
+          setStatus("done");
+          setUploading(false);
+          return;
+        }
+        if (data.status === "errored") {
+          throw new Error(data.error || "Mux failed to process this video");
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Status check failed");
+        setStatus("error");
+        setUploading(false);
+        return;
+      }
+
+      if (Date.now() > deadline) {
+        setError(
+          "Processing is taking longer than expected. Check the lesson page later for status."
+        );
+        setStatus("error");
+        setUploading(false);
+        return;
+      }
+      pollTimer.current = setTimeout(poll, POLL_INTERVAL_MS);
+    };
+
+    pollTimer.current = setTimeout(poll, POLL_INTERVAL_MS);
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file after a failure
+    e.target.value = "";
     if (!file || !selectedLesson) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setError("File is too large. Maximum size is 5GB.");
+      setStatus("error");
+      return;
+    }
 
     setUploading(true);
     setStatus("uploading");
@@ -52,38 +129,36 @@ export function VideoUploadForm({ lessonOptions }: VideoUploadFormProps) {
       });
 
       const createData = await createRes.json();
-      if (createData.error) throw new Error(createData.error);
+      if (!createRes.ok || createData.error) {
+        throw new Error(createData.error || "Failed to create upload");
+      }
 
-      const uploadUrl = createData.uploadUrl;
+      const uploadUrl: string = createData.uploadUrl;
 
       // Step 2: Upload the file directly to Mux
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", uploadUrl);
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl);
 
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          setProgress(Math.round((event.loaded / event.total) * 100));
-        }
-      };
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            setProgress(Math.round((event.loaded / event.total) * 100));
+          }
+        };
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          setStatus("processing");
-          // Mux will process the video and send a webhook when ready
-          setTimeout(() => {
-            setStatus("done");
-            setUploading(false);
-          }, 3000);
-        } else {
-          throw new Error("Upload failed");
-        }
-      };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.onabort = () => reject(new Error("Upload cancelled"));
+        xhr.send(file);
+      });
 
-      xhr.onerror = () => {
-        throw new Error("Upload failed");
-      };
-
-      xhr.send(file);
+      // Step 3: Poll our API until the Mux webhook reports ready/errored
+      setStatus("processing");
+      setProgress(100);
+      pollUntilProcessed(selectedLesson, Date.now() + POLL_TIMEOUT_MS);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
       setStatus("error");
@@ -148,7 +223,8 @@ export function VideoUploadForm({ lessonOptions }: VideoUploadFormProps) {
           <div>
             <p className="font-heading font-semibold">Processing Video</p>
             <p className="text-sm text-muted-foreground">
-              Mux is encoding your video. This may take a few minutes.
+              Mux is encoding your video. This may take a few minutes — you can
+              safely leave this page.
             </p>
           </div>
         </div>
@@ -156,9 +232,9 @@ export function VideoUploadForm({ lessonOptions }: VideoUploadFormProps) {
         <div className="rounded-xl border border-accent-500 bg-accent-500/5 p-8 text-center space-y-4">
           <CheckCircle2 className="h-10 w-10 text-accent-500 mx-auto" />
           <div>
-            <p className="font-heading font-semibold">Upload Complete!</p>
+            <p className="font-heading font-semibold">Video Ready!</p>
             <p className="text-sm text-muted-foreground">
-              Your video is being processed and will be available shortly.
+              Your video has been processed and is live on the lesson.
             </p>
           </div>
           <Button

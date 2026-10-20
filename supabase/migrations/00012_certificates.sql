@@ -2,7 +2,7 @@
 -- Auto-issued certificates with public verification
 
 create table public.certificates (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   enrollment_id uuid not null references public.enrollments(id) on delete cascade,
   course_id uuid not null references public.courses(id) on delete cascade,

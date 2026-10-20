@@ -6,10 +6,8 @@ import {
   Users,
   Plus,
   Calendar,
-  Clock,
   DollarSign,
   Settings,
-  ChevronRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,11 +33,22 @@ export default async function ManageCohortsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Fetch cohorts for instructor's courses
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("id")
-    .eq("instructor_id", user.id);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || !["instructor", "admin", "teaching_assistant"].includes(profile.role)) {
+    redirect("/dashboard");
+  }
+
+  // Fetch cohorts for instructor's courses; admins see all
+  let courseQuery = supabase.from("courses").select("id");
+  if (profile.role !== "admin") {
+    courseQuery = courseQuery.eq("instructor_id", user.id);
+  }
+  const { data: courses } = await courseQuery;
 
   const courseIds = courses?.map((c) => c.id) || [];
 
@@ -49,7 +58,7 @@ export default async function ManageCohortsPage() {
         .select("*, course:courses (title, slug)")
         .in("course_id", courseIds)
         .order("starts_at", { ascending: false })
-    : { data: [] };
+    : { data: [] as never[] };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -62,9 +71,11 @@ export default async function ManageCohortsPage() {
             Manage your course cohorts and enrollments.
           </p>
         </div>
-        <Button variant="accent" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Cohort
+        <Button variant="accent" className="gap-2" asChild>
+          <Link href="/manage/cohorts/new">
+            <Plus className="h-4 w-4" />
+            Create Cohort
+          </Link>
         </Button>
       </div>
 
@@ -115,9 +126,16 @@ export default async function ManageCohortsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <Settings className="h-3.5 w-3.5" />
-                      Manage
+                    <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                      <Link href={`/manage/cohorts/${cohort.id}`}>
+                        <Settings className="h-3.5 w-3.5" />
+                        Manage
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="gap-1.5" asChild>
+                      <Link href={`/manage/cohorts/${cohort.id}/edit`}>
+                        Edit
+                      </Link>
                     </Button>
                   </div>
                 </div>
@@ -134,9 +152,11 @@ export default async function ManageCohortsPage() {
           <p className="text-sm text-muted-foreground mb-4">
             Create a cohort for one of your courses to start enrolling students.
           </p>
-          <Button variant="accent" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Cohort
+          <Button variant="accent" className="gap-2" asChild>
+            <Link href="/manage/cohorts/new">
+              <Plus className="h-4 w-4" />
+              Create Cohort
+            </Link>
           </Button>
         </Card>
       )}

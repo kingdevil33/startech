@@ -5,6 +5,7 @@ import {
   createYouTubeBroadcast,
   hasYouTubeCredentials,
 } from "@/lib/youtube";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   cohortId: z.string().uuid(),
@@ -25,6 +26,14 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(apiRateLimit, `api:${user.id}`);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429 }
+      );
     }
 
     const parsed = schema.safeParse(await request.json().catch(() => null));

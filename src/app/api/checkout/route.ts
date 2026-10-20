@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { startEnrollmentCheckout } from "@/lib/checkout";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const checkoutSchema = z.object({
   cohortId: z.string().uuid(),
@@ -22,6 +23,14 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(apiRateLimit, `api:${user.id}`);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429 }
+      );
     }
 
     const body = await request.json().catch(() => null);

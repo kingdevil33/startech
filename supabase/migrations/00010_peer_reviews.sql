@@ -5,7 +5,7 @@ create type public.review_status as enum ('pending', 'completed', 'late', 'skipp
 
 -- Review assignments: which student reviews which submission
 create table public.review_assignments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   submission_id uuid not null references public.submissions(id) on delete cascade,
   reviewer_id uuid not null references public.profiles(id) on delete cascade,
   cohort_id uuid not null references public.cohorts(id) on delete cascade,
@@ -33,7 +33,7 @@ create trigger review_assignments_updated_at
 
 -- Reviews: the actual feedback
 create table public.reviews (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   review_assignment_id uuid not null references public.review_assignments(id) on delete cascade,
   reviewer_id uuid not null references public.profiles(id) on delete cascade,
   submission_id uuid not null references public.submissions(id) on delete cascade,

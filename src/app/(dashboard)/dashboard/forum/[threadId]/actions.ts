@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, forumRateLimit } from "@/lib/rate-limit";
 
 export async function createReply({
   threadId,
@@ -18,6 +19,11 @@ export async function createReply({
 
   if (!user) return { error: "Not authenticated" };
   if (!content.trim()) return { error: "Reply cannot be empty" };
+
+  const limit = await checkRateLimit(forumRateLimit, `forum:${user.id}`);
+  if (!limit.success) {
+    return { error: "You're posting too quickly. Please slow down." };
+  }
 
   const { error } = await supabase.from("posts").insert({
     thread_id: threadId,

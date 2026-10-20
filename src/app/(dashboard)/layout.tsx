@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getNavForRole } from "@/config/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { redirect } from "next/navigation";
 
@@ -25,7 +24,6 @@ export default async function DashboardLayout({
     .single();
 
   const role = profile?.role || "student";
-  const navSections = getNavForRole(role);
 
-  return <DashboardShell navSections={navSections}>{children}</DashboardShell>;
+  return <DashboardShell role={role}>{children}</DashboardShell>;
 }

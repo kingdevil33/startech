@@ -139,6 +139,132 @@ function dbErrorMessage(message: string, code?: string): string {
   return message;
 }
 
+function parseCourseFields(formData: FormData): {
+  error?: string;
+  fields: {
+    title: string;
+    slug: string;
+    category: string | null;
+    level: string | null;
+    estimated_duration_weeks: number;
+    description: string;
+    long_description: string;
+    thumbnail_url: string | null;
+    meta_title: string | null;
+    meta_description: string | null;
+    certificate_rules: {
+      lessons_complete_percent: number;
+      live_attendance_percent: number;
+      assignments_submitted_percent: number;
+      peer_reviews_completed_percent: number;
+    };
+  };
+} {
+  const title = ((formData.get("title") as string) || "").trim();
+  if (!title) return { error: "Title is required", fields: emptyCourseFields() };
+
+  const slug = ((formData.get("slug") as string) || "").trim();
+  if (!slug) return { error: "Slug is required", fields: emptyCourseFields() };
+
+  const levelRaw = ((formData.get("level") as string) || "").trim();
+  const durationRaw = Number(formData.get("estimated_duration_weeks"));
+
+  return {
+    fields: {
+      title,
+      slug,
+      category: ((formData.get("category") as string) || "").trim() || null,
+      level: LEVELS.includes(levelRaw) ? levelRaw : null,
+      estimated_duration_weeks:
+        Number.isFinite(durationRaw) && durationRaw >= 1
+          ? Math.round(durationRaw)
+          : 8,
+      description: ((formData.get("description") as string) || "").trim(),
+      long_description: ((formData.get("long_description") as string) || "").trim(),
+      thumbnail_url:
+        ((formData.get("thumbnail_url") as string) || "").trim() || null,
+      meta_title: ((formData.get("meta_title") as string) || "").trim() || null,
+      meta_description:
+        ((formData.get("meta_description") as string) || "").trim() || null,
+      certificate_rules: {
+        lessons_complete_percent: parsePercent(
+          formData.get("lessons_complete_percent")
+        ),
+        live_attendance_percent: parsePercent(
+          formData.get("live_attendance_percent")
+        ),
+        assignments_submitted_percent: parsePercent(
+          formData.get("assignments_submitted_percent")
+        ),
+        peer_reviews_completed_percent: parsePercent(
+          formData.get("peer_reviews_completed_percent")
+        ),
+      },
+    },
+  };
+}
+
+function emptyCourseFields() {
+  return {
+    title: "",
+    slug: "",
+    category: null as string | null,
+    level: null as string | null,
+    estimated_duration_weeks: 8,
+    description: "",
+    long_description: "",
+    thumbnail_url: null as string | null,
+    meta_title: null as string | null,
+    meta_description: null as string | null,
+    certificate_rules: {
+      lessons_complete_percent: 0,
+      live_attendance_percent: 0,
+      assignments_submitted_percent: 0,
+      peer_reviews_completed_percent: 0,
+    },
+  };
+}
+
+/** Instructor creates a course (assigned to themselves); admin may pick any instructor. */
+export async function createCourseAction(
+  formData: FormData
+): Promise<ActionResult> {
+  const auth = await requireContentEditor();
+  if (auth.error || !auth.supabase) return { error: auth.error || "Forbidden" };
+  const { supabase, userId, role } = auth;
+
+  const validation = parseCourseFields(formData);
+  if (validation.error) return { error: validation.error };
+
+  let instructorId: string | null = userId;
+  if (role === "admin") {
+    const requested = ((formData.get("instructorId") as string) || "").trim();
+    instructorId = requested || null;
+  }
+
+  const { data: created, error } = await supabase
+    .from("courses")
+    .insert({ ...validation.fields, instructor_id: instructorId })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    return {
+      error: dbErrorMessage(error?.message || "Failed to create course", error?.code),
+    };
+  }
+
+  await logAudit(supabase, userId, "course.created", "course", created.id, {
+    title: validation.fields.title,
+    slug: validation.fields.slug,
+    instructor_id: instructorId,
+  });
+
+  revalidatePath("/manage/courses");
+  revalidatePath("/admin/courses");
+  redirect(`/manage/courses/${created.id}`);
+}
+
 export async function updateCourseAction(
   formData: FormData
 ): Promise<ActionResult> {

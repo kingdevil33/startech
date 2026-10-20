@@ -199,6 +199,16 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (!metadata.enrollment_id) break;
 
+      // Idempotency: Stripe retries and duplicate endpoint deliveries must
+      // not re-send notifications/emails for an already-activated enrollment.
+      const { data: enrollment } = await admin
+        .from("enrollments")
+        .select("id, status")
+        .eq("id", metadata.enrollment_id)
+        .maybeSingle();
+
+      const alreadyActive = enrollment?.status === "active";
+
       await admin
         .from("enrollments")
         .update({
@@ -224,6 +234,8 @@ export default async function handler(req: Request): Promise<Response> {
         },
         { onConflict: "enrollment_id,gateway" }
       );
+
+      if (alreadyActive) break;
 
       await admin.rpc("create_notification", {
         p_user_id: metadata.user_id,
@@ -281,6 +293,14 @@ export default async function handler(req: Request): Promise<Response> {
       if (paymentIntentId) {
         const refundAmount = (charge.amount_refunded || 0) / 100;
 
+        const { data: payment } = await admin
+          .from("payments")
+          .select("id, enrollment_id, user_id, status")
+          .eq("gateway_payment_id", paymentIntentId)
+          .maybeSingle();
+
+        const alreadyRefunded = payment?.status === "refunded";
+
         await admin
           .from("payments")
           .update({
@@ -290,13 +310,7 @@ export default async function handler(req: Request): Promise<Response> {
           })
           .eq("gateway_payment_id", paymentIntentId);
 
-        const { data: payment } = await admin
-          .from("payments")
-          .select("id, enrollment_id, user_id")
-          .eq("gateway_payment_id", paymentIntentId)
-          .single();
-
-        if (payment) {
+        if (payment && !alreadyRefunded) {
           await admin
             .from("enrollments")
             .update({ status: "refunded" })

@@ -5,15 +5,27 @@ import { VideoUploadForm } from "./upload-form";
 
 export const metadata: Metadata = { title: "Upload Video" };
 
-export default async function UploadVideoPage() {
+export default async function UploadVideoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lessonId?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Fetch instructor's courses with lessons
-  const { data: courses } = await supabase
+  const { lessonId: requestedLessonId } = await searchParams;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  // Instructors see their own courses; admins see all
+  let query = supabase
     .from("courses")
     .select(
       `
@@ -24,8 +36,13 @@ export default async function UploadVideoPage() {
       )
     `
     )
-    .eq("instructor_id", user.id)
     .order("created_at", { ascending: false });
+
+  if (profile?.role !== "admin") {
+    query = query.eq("instructor_id", user.id);
+  }
+
+  const { data: courses } = await query;
 
   // Build lesson options
   const lessonOptions: {
@@ -75,7 +92,10 @@ export default async function UploadVideoPage() {
         </p>
       </div>
 
-      <VideoUploadForm lessonOptions={lessonOptions} />
+      <VideoUploadForm
+        lessonOptions={lessonOptions}
+        initialLessonId={requestedLessonId}
+      />
     </div>
   );
 }

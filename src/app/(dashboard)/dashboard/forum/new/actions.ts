@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, forumRateLimit } from "@/lib/rate-limit";
 
 export async function createThread({
   categoryId,
@@ -19,6 +20,11 @@ export async function createThread({
   if (!user) return { error: "Not authenticated" };
   if (!title.trim()) return { error: "Title is required" };
   if (!content.trim()) return { error: "Content is required" };
+
+  const limit = await checkRateLimit(forumRateLimit, `forum:${user.id}`);
+  if (!limit.success) {
+    return { error: "You're posting too quickly. Please slow down." };
+  }
 
   const { data, error } = await supabase
     .from("threads")

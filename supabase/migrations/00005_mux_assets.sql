@@ -4,7 +4,7 @@
 create type public.mux_asset_status as enum ('waiting', 'preparing', 'ready', 'errored');
 
 create table public.mux_assets (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   lesson_id uuid not null references public.lessons(id) on delete cascade,
 
   -- Mux identifiers

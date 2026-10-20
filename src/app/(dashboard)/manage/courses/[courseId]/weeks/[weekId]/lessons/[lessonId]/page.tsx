@@ -189,12 +189,14 @@ export default async function LessonEditorPage({ params }: Props) {
               Mux assets linked to this lesson.
             </p>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5" asChild>
-            <Link href="/manage/upload">
-              <Upload className="h-3.5 w-3.5" />
-              Upload video
-            </Link>
-          </Button>
+          {String(lesson.lesson_type) === "video" && (
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Link href={`/manage/upload?lessonId=${lessonId}`}>
+                <Upload className="h-3.5 w-3.5" />
+                Upload video
+              </Link>
+            </Button>
+          )}
         </div>
 
         {assets.length > 0 ? (

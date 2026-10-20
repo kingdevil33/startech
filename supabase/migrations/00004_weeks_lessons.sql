@@ -4,7 +4,7 @@
 create type public.lesson_type as enum ('video', 'text', 'quiz', 'resource');
 
 create table public.weeks (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
   title text not null,
   description text,
@@ -23,7 +23,7 @@ create trigger weeks_updated_at
   for each row execute function public.update_updated_at();
 
 create table public.lessons (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   week_id uuid not null references public.weeks(id) on delete cascade,
   title text not null,
   slug text not null,

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { refundStripePayment } from "@/lib/stripe/checkout";
 import { refundPaystackTransaction } from "@/lib/paystack/checkout";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   paymentId: z.string().uuid(),
@@ -21,6 +22,14 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(apiRateLimit, `api:${user.id}`);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429 }
+      );
     }
 
     const { data: profile } = await supabase

@@ -2,7 +2,7 @@
 -- Discussion forum: categories, threads, posts (nested), reactions
 
 create table public.forum_categories (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   cohort_id uuid not null references public.cohorts(id) on delete cascade,
   name text not null,
   description text,
@@ -18,7 +18,7 @@ create table public.forum_categories (
 create index idx_forum_categories_cohort on public.forum_categories(cohort_id);
 
 create table public.threads (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   category_id uuid not null references public.forum_categories(id) on delete cascade,
   author_id uuid not null references public.profiles(id) on delete cascade,
   title text not null,
@@ -51,7 +51,7 @@ create trigger threads_updated_at
   for each row execute function public.update_updated_at();
 
 create table public.posts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   thread_id uuid not null references public.threads(id) on delete cascade,
   author_id uuid not null references public.profiles(id) on delete cascade,
   parent_id uuid references public.posts(id) on delete cascade, -- for nested replies
@@ -86,7 +86,7 @@ alter table public.threads
 
 -- Reactions on posts
 create table public.reactions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   emoji text not null, -- '👍', '❤️', '🎉', '🤔', '👀'

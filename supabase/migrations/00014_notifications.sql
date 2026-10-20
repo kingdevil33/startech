@@ -14,7 +14,7 @@ create type public.notification_type as enum (
 );
 
 create table public.notifications (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   type public.notification_type not null,
   title text not null,

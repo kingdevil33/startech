@@ -67,7 +67,7 @@ export const instructorNav: NavSection[] = [
   {
     label: "Teach",
     items: [
-      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Dashboard", href: "/manage", icon: LayoutDashboard },
       { title: "My Courses", href: "/manage/courses", icon: BookOpen },
       { title: "Cohorts", href: "/manage/cohorts", icon: Users },
       { title: "Upload Video", href: "/manage/upload", icon: Upload },
@@ -77,7 +77,8 @@ export const instructorNav: NavSection[] = [
   {
     label: "Review",
     items: [
-      { title: "Submissions", href: "/dashboard/reviews", icon: ClipboardCheck },
+      { title: "Submissions", href: "/manage/submissions", icon: ClipboardCheck },
+      { title: "Peer Reviews", href: "/dashboard/reviews", icon: FileText },
       { title: "Analytics", href: "/manage/analytics", icon: BarChart3 },
     ],
   },

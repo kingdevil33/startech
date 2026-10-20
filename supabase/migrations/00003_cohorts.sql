@@ -11,7 +11,7 @@ create type public.cohort_status as enum (
 );
 
 create table public.cohorts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
   name text not null,
   slug text not null,
